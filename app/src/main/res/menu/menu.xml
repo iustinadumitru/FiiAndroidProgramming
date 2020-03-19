@@ -14,4 +14,8 @@
         android:id="@+id/item3"
         android:title="New"
         app:showAsAction="never" />
+    <item
+        android:id="@+id/item4"
+        android:title="Settings"
+        app:showAsAction="never" />
 </menu>

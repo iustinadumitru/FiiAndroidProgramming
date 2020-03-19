@@ -1,6 +1,7 @@
 package com.example.onlineshop2;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -9,26 +10,38 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.preference.PreferenceManager;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Locale;
 
 
-public class MainActivity extends AppCompatActivity implements ExampleDialog.ExampleDialogListener {
+public class MainActivity extends AppCompatActivity implements ExampleDialog.ExampleDialogListener, SharedPreferences.OnSharedPreferenceChangeListener {
 
     private static final String TAG = "MainActivity";
     public static final String EXTRA_TEXT = "com.example.onlineshop2.example.EXTRA_TEXT";
+    TextView visibletxt;
 
     final private String productTextViewValueContent = "productTextViewValueContent";
     ListView listView;
     TextView productTextView;
     private TextView textViewMessage;
+
+    private static final String FILE_NAME = "example.txt";
+    EditText mEditText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,7 +82,33 @@ public class MainActivity extends AppCompatActivity implements ExampleDialog.Exa
         });
 
         textViewMessage = (TextView) findViewById(R.id.textview_message);
+
+        setupSharedPreferences();
+
+        mEditText = findViewById(R.id.edit_text);
     }
+
+    private void setupSharedPreferences() {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this);
+    }
+
+    private void setTextVisible(boolean display_text) {
+        if (display_text == true) {
+            visibletxt.setVisibility(View.VISIBLE);
+        } else {
+            visibletxt.setVisibility(View.INVISIBLE);
+        }
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+
+        if (key.equals("display_text")) {
+            setTextVisible(sharedPreferences.getBoolean("display_text", true));
+        }
+    }
+
 
     @Override
     protected void onStart() {
@@ -99,6 +138,7 @@ public class MainActivity extends AppCompatActivity implements ExampleDialog.Exa
     protected void onDestroy() {
         super.onDestroy();
         Log.i(TAG, "onDestroy");
+        PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(this);
     }
 
     @Override
@@ -116,7 +156,9 @@ public class MainActivity extends AppCompatActivity implements ExampleDialog.Exa
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.item3) {
+        if (item.getItemId() == R.id.item4) {
+            openSettingsActivity();
+        } else if (item.getItemId() == R.id.item3) {
             openActivity2();
         } else if (item.getItemId() == R.id.item2) {
             Toast.makeText(this, "Hi! My First Android Application :)", Toast.LENGTH_SHORT).show();
@@ -124,6 +166,11 @@ public class MainActivity extends AppCompatActivity implements ExampleDialog.Exa
             openDialog();
         }
         return true;
+    }
+
+    public void openSettingsActivity() {
+        Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+        startActivity(intent);
     }
 
     public void openActivity2() {
@@ -143,5 +190,60 @@ public class MainActivity extends AppCompatActivity implements ExampleDialog.Exa
     @Override
     public void applyTexts(String message) {
         textViewMessage.setText(message);
+    }
+
+    public void save(View v) throws IOException {
+        String text = mEditText.getText().toString();
+        FileOutputStream fos = null;
+
+        try {
+            fos = openFileOutput(FILE_NAME, MODE_PRIVATE);
+            fos.write(text.getBytes());
+
+            mEditText.getText().clear();
+            Toast.makeText(this, "Saved to " + getFilesDir() + "/" + FILE_NAME, Toast.LENGTH_SHORT).show();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public void load(View v) {
+        FileInputStream fis = null;
+
+        try {
+            fis = openFileInput(FILE_NAME);
+            InputStreamReader isr = new InputStreamReader(fis);
+            BufferedReader br = new BufferedReader(isr);
+            StringBuilder sb = new StringBuilder();
+            String text;
+
+            while ((text = br.readLine()) != null) {
+                sb.append(text).append("\n");
+            }
+
+            mEditText.setText(sb.toString());
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }
