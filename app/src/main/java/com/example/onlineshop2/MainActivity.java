@@ -156,7 +156,9 @@ public class MainActivity extends AppCompatActivity implements ExampleDialog.Exa
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.item5) {
+        if (item.getItemId() == R.id.item6) {
+            openActivityCamera();
+        } else if (item.getItemId() == R.id.item5) {
             openActivitySensors();
         } else if (item.getItemId() == R.id.item4) {
             openSettingsActivity();
@@ -168,6 +170,11 @@ public class MainActivity extends AppCompatActivity implements ExampleDialog.Exa
             openDialog();
         }
         return true;
+    }
+
+    public void openActivityCamera() {
+        Intent intent = new Intent(MainActivity.this, CameraActivity.class);
+        startActivity(intent);
     }
 
     public void openActivitySensors() {
