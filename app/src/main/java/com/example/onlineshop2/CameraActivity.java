@@ -1,84 +1,121 @@
 package com.example.onlineshop2;
 
-import android.Manifest;
-import android.content.ContentValues;
-import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.net.Uri;
-import android.os.Build;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.hardware.Camera;
 import android.os.Bundle;
-import android.provider.MediaStore;
+import android.os.Environment;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class CameraActivity extends AppCompatActivity {
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
-    Button mCaptureBtn;
-    ImageView mImageView;
-    private static final int PERMISSION_CODE = 1000;
-    private static final int IMAGE_CAPTURE_CODE = 1001;
+public class CameraActivity extends AppCompatActivity implements SurfaceHolder.Callback {
 
-    Uri image_uri;
+    private Button btnCapture;
+    private SurfaceView surfaceView;
+    private Camera camera;
+    private SurfaceHolder surfaceHolder;
+    private Camera.PictureCallback pictureCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_camera);
 
-        mImageView = findViewById(R.id.image_view);
-        mCaptureBtn = findViewById(R.id.capture_image_btn);
+        surfaceView = findViewById(R.id.surfaceView);
+        btnCapture = findViewById(R.id.btnCapture);
 
-        mCaptureBtn.setOnClickListener(new View.OnClickListener() {
+        surfaceHolder = surfaceView.getHolder();
+        surfaceHolder.addCallback(this);
+        surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+
+        btnCapture.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_DENIED) {
-                        String[] permission = {Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE};
-                        requestPermissions(permission, PERMISSION_CODE);
-                    } else {
-                        openCamera();
-                    }
-                } else {
-                    openCamera();
-                }
+                camera.takePicture(null, null, pictureCallback);
             }
         });
-    }
 
-    private void openCamera() {
-        ContentValues values = new ContentValues();
-        values.put(MediaStore.Images.Media.TITLE, "New Picture");
-        values.put(MediaStore.Images.Media.DESCRIPTION, "From the Camera");
-        image_uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-        Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, image_uri);
-        startActivityForResult(cameraIntent, IMAGE_CAPTURE_CODE);
-    }
+        pictureCallback = new Camera.PictureCallback() {
+            @Override
+            public void onPictureTaken(byte[] data, Camera camera) {
+                Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
+                Bitmap cbmp = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), null, true);
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_CODE: {
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    openCamera();
-                } else {
-                    Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show();
-                }
+                String pathFileName = currentDateFormat();
+                storePhotoToStorage(cbmp, pathFileName);
+
+                Toast.makeText(getApplicationContext(), "Smile!", Toast.LENGTH_LONG).show();
+
+                CameraActivity.this.camera.startPreview();
             }
+        };
+    }
+
+    private void storePhotoToStorage(Bitmap cbmp, String pathFileName) {
+        File outputFile = new File(Environment.getExternalStorageDirectory(), "/DCIM/" + "photo" + pathFileName + ".jpg");
+
+        try {
+            FileOutputStream fileOutputStream = new FileOutputStream(outputFile);
+            cbmp.compress(Bitmap.CompressFormat.JPEG, 100, fileOutputStream);
+            fileOutputStream.flush();
+            fileOutputStream.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private String currentDateFormat() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd_HH_mm_ss");
+        String currentTime = dateFormat.format(new Date());
+        return currentTime;
+    }
+
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
+        try {
+            camera = Camera.open();
+        } catch (Exception e) {
+
+        }
+
+        Camera.Parameters parameters;
+        parameters = camera.getParameters();
+        parameters.setPreviewFrameRate(20);
+        parameters.setPreviewSize(352, 288);
+        camera.setParameters(parameters);
+        camera.setDisplayOrientation(90);
+        try {
+            camera.setPreviewDisplay(surfaceHolder);
+            camera.startPreview();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            mImageView.setImageURI(image_uri);
-        }
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        camera.stopPreview();
+        camera.release();
+        camera = null;
     }
 }
